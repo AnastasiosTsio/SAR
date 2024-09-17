@@ -3,8 +3,7 @@
 We have 3 main classes: Broker, Channel and Task
 
 ### Channel
-The channel is how multiple tasks can communicate between them.
-It contains functions that allow a Task to read and write in the channel. It is also able to disconnect and give its status as well. A channel can have more than 1 task that writes to the channel. That's why write should be waited, because other wise the messages will be combined resulting in incomprensible messages.
+The channel is how multiple tasks can communicate between them. It facilitates the transmission of data streams between tasks, ensuring orderly communication and preventing message overlap. It contains functions that allow a Task to read and write in the channel. It is also able to disconnect and give its status as well. It is important to note that channel is not multi-threaded. However, different threads can write/read in the channel, but one at a time. It is up to the developer to properly syncronize everything.
 
 #### Methods:
 - int read(byte[] bytes, int offset, int length):
@@ -13,6 +12,8 @@ It contains functions that allow a Task to read and write in the channel. It is 
     - bytes: The buffer into which the data will be read.
     - offset: The start position in the buffer at which to store the data.
     - length: The maximum number of bytes to read.
+  - **Returns:**
+    - the number of bytes actually read, or -1 if there was a problem.
 
 - int write(byte[] bytes, int offset, int length):
   - Writes data from the provided byte array into the channel.
@@ -20,6 +21,8 @@ It contains functions that allow a Task to read and write in the channel. It is 
     - bytes: The buffer containing the data to write.
     - offset: The start position in the buffer from which to read the data.
     - length: The number of bytes to write to the channel.
+  - **Returns:**
+    - the number of bytes actually written, or -1 if there was a problem.
 
 - void disconnect():
   - Closes the channel and terminates the connection.
@@ -30,11 +33,11 @@ It contains functions that allow a Task to read and write in the channel. It is 
 
 
 ### Broker
-In order for a task to be connected to the channel, the broker is needed. It serves as a middle man, that accepts a port in order to see if it is available as well as connecting the Task to a specific channel in a specific port. 
+In order for a task to be connected to the channel, the broker is needed. It serves as a middle man, that accepts a port in order to see if it is available as well as connecting the Task to a specific channel in a specific port. The broker can be the same for multiple tasks. 
 
 #### Constructor:
 - Broker(String name): 
-  - Initializes the Broker with the given name.
+  - Initializes the Broker with the given name. Each name should be unique because we can have multiple brokers and we need a way to be able to differentiate the different brokers. 
   - **Parameters:**
     - name: The name of the broker (used to identify it for connection purposes).
 
@@ -57,7 +60,7 @@ In order for a task to be connected to the channel, the broker is needed. It ser
 
 
 ### Task
-It represents a task running in its own thread, and it interacts with a Broker. Each task performs an action provided as a Runnable.
+It represents a task running in its own thread, and it interacts with a Broker and can have only one Broker. Each task performs an action provided as a Runnable.
 
 #### Constructor:
 - Task(Broker b, Runnable r):
