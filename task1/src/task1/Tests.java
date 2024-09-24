@@ -2,57 +2,91 @@ package task1;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import except.DisconnectedException;
+import impl.BrokerManager;
+import impl.ConcreteBroker;
 class Tests {
 
-	@ParameterizedTest
-	@MethodSource("createBroker")
-	void testEchoServer(Broker broker) {
-		int clientCount = 5;
-		int port = 1234;
+    private static Broker echoBroker;
 
-		for (int i = 0; i < clientCount; i++) {
-			Channel channel = broker.connect("localhost", port);
-			assertNotNull(channel, "Channel should not be null");
+    @BeforeAll
+    static void setUpServer() {
+        BrokerManager brokerManager = new BrokerManager();
+        echoBroker = new ConcreteBroker("EchoBroker", brokerManager);
+        brokerManager.registerBroker(echoBroker);
 
-			byte[] sendBytes = new byte[255];
-			for (int j = 0; j < 255; j++) {
-				sendBytes[j] = (byte) (j + 1);
-			}
+        new Task(echoBroker, () -> {
+            while (true) {
+                try {
+                    Channel channel = echoBroker.accept(1234);
+                    byte[] buffer = new byte[255];
+                    int bytesRead;
 
-			int bytesWritten = channel.write(sendBytes, 0, sendBytes.length);
-			assertEquals(255, bytesWritten, "Failed to write all bytes to the channel");
+                    while ((bytesRead = channel.read(buffer, 0, buffer.length)) > 0) {
+                        channel.write(buffer, 0, bytesRead);
+                    }
+                } catch (DisconnectedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+    }
 
-			byte[] receivedBytes = new byte[255];
+    @ParameterizedTest
+    @MethodSource("createBroker")
+    void testEchoServer(Broker broker) {
+        int clientCount = 5;
+        int port = 1234;
+        ExecutorService executor = Executors.newFixedThreadPool(clientCount);
 
-			int bytesRead = channel.read(receivedBytes, 0, receivedBytes.length);
-			assertEquals(255, bytesRead, "Failed to read all bytes from the channel");
+        for (int i = 0; i < clientCount; i++) {
+            final int clientId = i;
+            executor.submit(() -> {
+                Channel channel = broker.connect("localhost", port);
+                assertNotNull(channel, "Channel should not be null");
 
-			assertArrayEquals(sendBytes, receivedBytes, "The echoed bytes do not match the sent bytes");
+                byte[] sendBytes = new byte[255];
+                for (int j = 0; j < 255; j++) {
+                    sendBytes[j] = (byte) (j + 1);
+                }
 
-			channel.disconnect();
-			assertTrue(channel.disconnected(), "Channel should be disconnected");
-		}
-	}
+                try {
+                    int bytesWritten = channel.write(sendBytes, 0, sendBytes.length);
+                    assertEquals(255, bytesWritten, "Failed to write all bytes to the channel");
 
-	private static Stream<Broker> createBroker() {
-		return Stream.of(
-				new Broker("EchoBroker") {
-					@Override
-					Channel accept(int port) {
-						return null;
-					}
+                    byte[] receivedBytes = new byte[255];
+                    int bytesRead = channel.read(receivedBytes, 0, receivedBytes.length);
+                    assertEquals(255, bytesRead, "Failed to read all bytes from the channel");
 
-					@Override
-					Channel connect(String name, int port) {
-						return null;
-					}
-				}
-			);
-	}
+                    assertArrayEquals(sendBytes, receivedBytes, "The echoed bytes do not match the sent bytes");
+                } catch (DisconnectedException e) {
+                    fail("Channel disconnected unexpectedly: " + e.getMessage());
+                }
 
+                channel.disconnect();
+                assertTrue(channel.disconnected(), "Channel should be disconnected");
+            });
+        }
+
+        executor.shutdown();
+        while (!executor.isTerminated()) {
+        }
+    }
+
+    private static Stream<Broker> createBroker() {
+        BrokerManager brokerManager = new BrokerManager();
+        Broker broker = new ConcreteBroker("EchoBroker", brokerManager);
+        brokerManager.registerBroker(broker);
+
+        return Stream.of(broker);
+    }
 }
+
