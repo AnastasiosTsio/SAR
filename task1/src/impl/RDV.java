@@ -33,16 +33,14 @@ public class RDV {
         synchronized (lock) {
             isServerReady = true;
             
-            // Check if client is already ready
             if (!isClientReady) {
                 try {
-                    lock.wait(); // Wait for the client to be ready
+                    lock.wait();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
             }
             
-            // Notify client that the server is ready
             lock.notifyAll();
             return channelForServer;
         }
@@ -52,16 +50,14 @@ public class RDV {
         synchronized (lock) {
             isClientReady = true;
             
-            // Check if server is already ready
             if (!isServerReady) {
                 try {
-                    lock.wait(); // Wait for the server to be ready
+                    lock.wait();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
             }
             
-            // Notify server that the client is ready
             lock.notifyAll();
             return channelForClient;
         }

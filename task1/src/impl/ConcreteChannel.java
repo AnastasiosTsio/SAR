@@ -27,7 +27,7 @@ public class ConcreteChannel extends Channel {
             }
         } catch (IllegalStateException e) {
             if (disconnected()) {
-                throw new DisconnectedException(); // Handle disconnection during read
+                throw new DisconnectedException();
             }
         }
         return bytesRead;
@@ -47,7 +47,7 @@ public class ConcreteChannel extends Channel {
             }
         } catch (IllegalStateException e) {
             if (disconnected()) {
-                throw new DisconnectedException(); // Handle disconnection during write
+                throw new DisconnectedException();
             }
         }
         return bytesWritten;
