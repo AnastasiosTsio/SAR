@@ -1,8 +1,10 @@
 package task1;
 
+import except.DisconnectedException;
+
 public abstract class Channel {
-	abstract int read(byte[] bytes, int offset, int length);
-	abstract int write(byte[] bytes, int offset, int length);
-	abstract void disconnect();
-	abstract boolean disconnected();
+	public abstract int read(byte[] bytes, int offset, int length) throws DisconnectedException;
+	public abstract int write(byte[] bytes, int offset, int length) throws DisconnectedException;
+	public abstract void disconnect();
+	public abstract boolean disconnected();
 }

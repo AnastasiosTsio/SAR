@@ -1,9 +1,9 @@
 package task1;
 
-public abstract class Task extends Thread{
+public class Task extends Thread{
 	Broker broker;
 	
-	Task(Broker b, Runnable r){
+	public Task(Broker b, Runnable r){
 		super(r);
 		this.broker = b;
 	}
