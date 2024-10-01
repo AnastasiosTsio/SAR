@@ -18,20 +18,23 @@ public class ConcreteChannel extends Channel {
         if (disconnected()) {
             throw new DisconnectedException();
         }
-        
-        int bytesRead = 0;
+
+        int totalBytesRead = 0;
         try {
-            for (int i = 0; i < length; i++) {
-                bytes[offset + i] = bufferIn.pull();
-                bytesRead++;
+            while (totalBytesRead < length) {
+                try {
+                    bytes[offset + totalBytesRead] = bufferIn.pull();
+                    totalBytesRead++;
+                } catch (IllegalStateException e) {
+                    wait(10);
+                }
             }
-        } catch (IllegalStateException e) {
-            if (disconnected()) {
-                throw new DisconnectedException();
-            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
-        return bytesRead;
+        return totalBytesRead;
     }
+
 
     @Override
     public synchronized int write(byte[] bytes, int offset, int length) throws DisconnectedException {
@@ -39,19 +42,25 @@ public class ConcreteChannel extends Channel {
             throw new DisconnectedException();
         }
         
-        int bytesWritten = 0;
+        int totalBytesWritten = 0;
         try {
-            for (int i = 0; i < length; i++) {
-                bufferOut.push(bytes[offset + i]);
-                bytesWritten++;
+            while (totalBytesWritten < length) {
+                if (disconnected()) {
+                    throw new DisconnectedException();
+                }
+                try {
+                    bufferOut.push(bytes[offset + totalBytesWritten]);
+                    totalBytesWritten++;
+                } catch (IllegalStateException e) {
+                    wait(10);
+                }
             }
-        } catch (IllegalStateException e) {
-            if (disconnected()) {
-                throw new DisconnectedException();
-            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
-        return bytesWritten;
+        return totalBytesWritten;
     }
+
 
 
     @Override
