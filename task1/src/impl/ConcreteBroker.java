@@ -20,10 +20,14 @@ public class ConcreteBroker extends Broker {
         synchronized (rdvMap) {
             RDV rdv = rdvMap.get(port);
             if (rdv == null) {
-                rdv = new RDV(this, port);
-                rdvMap.put(port, rdv);
+                rdv = new RDV();
+                registerRdv(port, rdv);
             }
-            return rdv.getChannelForServer();
+            Channel serverChannel = rdv.getChannelForServer();
+            if (rdv.isReady()) {
+                rdvMap.remove(port);
+            }
+            return serverChannel;
         }
     }
 
@@ -37,11 +41,19 @@ public class ConcreteBroker extends Broker {
         synchronized (remoteBroker) {
             RDV rdv = ((ConcreteBroker) remoteBroker).getRdvForPort(port);
             if (rdv == null) {
-                rdv = new RDV(remoteBroker, this, port);
+                rdv = new RDV();
                 ((ConcreteBroker) remoteBroker).registerRdv(port, rdv);
             }
-            return rdv.getChannelForClient();
+            Channel clientChannel = rdv.getChannelForClient();
+            if (rdv.isReady()) {
+                ((ConcreteBroker) remoteBroker).removeRdv(port);
+            }
+            return clientChannel;
         }
+    }
+
+    public void removeRdv(int port) {
+        rdvMap.remove(port);
     }
 
     public RDV getRdvForPort(int port) {

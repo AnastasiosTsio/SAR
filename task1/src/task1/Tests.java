@@ -2,6 +2,7 @@ package task1;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -22,7 +23,9 @@ import impl.ConcreteBroker;
 class Tests {
 
     private static Broker echoBroker;
+    private static Broker bigBroker;
     private static BrokerManager brokerManager;
+    private static ByteArrayOutputStream bufferBig = new ByteArrayOutputStream();;
 
     @BeforeAll
     static void setUpServer() {
@@ -31,9 +34,9 @@ class Tests {
         brokerManager.registerBroker(echoBroker);
 
         new Task(echoBroker, () -> {
+        	Channel channel = echoBroker.accept(1234);
             while (true) {
                 try {
-                    Channel channel = echoBroker.accept(1234);
                     byte[] buffer = new byte[255];
                     int bytesRead;
 
@@ -41,7 +44,30 @@ class Tests {
                         channel.write(buffer, 0, bytesRead);
                     }
                 } catch (DisconnectedException e) {
-                    e.printStackTrace();
+                	if(channel.disconnected()) {
+                		channel = echoBroker.accept(1234);
+                	}
+                }
+            }
+        }).start();
+        
+        bigBroker = new ConcreteBroker("bigBroker",brokerManager);
+        brokerManager.registerBroker(bigBroker);
+        new Task(bigBroker, () -> {
+        	Channel channel = bigBroker.accept(4567);
+            while (true) {
+                try {
+                    
+                    byte[] buffer = new byte[255];
+                    int bytesRead;
+
+                    while (!channel.disconnected() && (bytesRead = channel.read(buffer, 0, buffer.length)) > 0) {
+                    	bufferBig.write(buffer, 0, bytesRead);
+                    }
+                } catch (DisconnectedException e) {
+                	if(channel.disconnected()) {
+                		channel = bigBroker.accept(1234);
+                	}
                 }
             }
         }).start();
@@ -50,6 +76,7 @@ class Tests {
     @ParameterizedTest
     @MethodSource("createBroker")
     void testEchoServer(Broker broker) throws InterruptedException {
+    	System.out.println("--------------------testEchoServer--------------------");
         int clientCount = 5;
         int port = 1234;
         ExecutorService executor = Executors.newFixedThreadPool(clientCount);
@@ -110,8 +137,38 @@ class Tests {
                 throw new RuntimeException(e.getCause());
             }
         }
+        
+        System.out.println("testEchoServer finished successfully");
     }
 
+    @ParameterizedTest
+    @MethodSource("createBroker")
+    void testLargeDataTransfer(Broker broker) throws InterruptedException {
+    	System.out.println("--------------------testLargeDataTransfer--------------------");
+    	int port = 4567;
+        
+        try {
+            Channel channel = broker.connect("bigBroker", port);
+            assertNotNull(channel, "Channel should not be null");
+
+            byte[] sendBytes = new byte[1024 * 5];
+            for (int i = 0; i < sendBytes.length; i++) {
+                sendBytes[i] = (byte) (i % 255);
+            }
+
+            int totalBytesWritten = 0;
+            while (totalBytesWritten < sendBytes.length) {
+                totalBytesWritten += channel.write(sendBytes, totalBytesWritten, sendBytes.length - totalBytesWritten);
+            }
+            assertEquals(sendBytes.length, totalBytesWritten, "Failed to write all bytes to the channel");
+
+            assertArrayEquals(sendBytes, bufferBig.toByteArray(), "The echoed bytes do not match the sent bytes");
+            channel.disconnect();
+        } catch (Exception e) {
+            fail("Exception occurred: " + e.getMessage());
+        }
+        System.out.println("testLargeDataTransfer finished successfully");
+    }
 
     private static Stream<Broker> createBroker() {
         Broker broker = new ConcreteBroker("EchoBroker", brokerManager);
