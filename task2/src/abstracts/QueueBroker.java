@@ -7,7 +7,7 @@ public abstract class QueueBroker {
 	public QueueBroker(Broker broker){
 		this.broker = broker;
 	}
-	abstract String name();
-	abstract MessageQueue accept(int port);
-	abstract MessageQueue connect(String name, int port);
+	public abstract String name();
+	public abstract MessageQueue accept(int port);
+	public abstract MessageQueue connect(String name, int port);
 }

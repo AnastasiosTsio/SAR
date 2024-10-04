@@ -1,8 +1,10 @@
 package abstracts;
 
+import except.DisconnectedException;
+
 public abstract class MessageQueue {
-	abstract void send(byte[] bytes, int offset, int length);
-	abstract byte[] receive();
-	abstract void close();
-	abstract boolean closed();
+	public abstract void send(byte[] bytes, int offset, int length) throws DisconnectedException;
+	public abstract byte[] receive() throws DisconnectedException;
+	public abstract void close();
+	public abstract boolean closed();
 }
