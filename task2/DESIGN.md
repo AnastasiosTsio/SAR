@@ -8,8 +8,8 @@ A task in the system can be associated with either a QueueBroker or a traditiona
 ### QueueBroker
 The QueueBroker is responsible for managing message-based communication between tasks. It allows tasks to connect and accept messages over specific ports. QueueBroker abstracts the concept of brokers from traditional channels to message-based queues and provides the following key functionalities:
 
-- **accept(int port)**: Binds to a specific port and waits for incoming connections. When a connection is established, it returns a MessageQueue for handling communication.
-- **connect(String name, int port)**: Initiates a connection to a remote broker using the specified name and port. It returns a MessageQueue when the connection is successful.
+- **accept(int port)**: Binds to a specific port and waits for incoming connections. When a connection is established, it returns a MessageQueue for handling communication. In order to achieve that we use the broker.connect from task1 that returns a channel in order to create a new MessageQueue for this channel.
+- **connect(String name, int port)**: Initiates a connection to a remote broker using the specified name and port. It returns a MessageQueue when the connection is successful. Same thing as the accept, we use the broker to connect to the port and return a MessageQueue
 
 Both accept and connect block until a connection is established, forming a MessageQueue that facilitates message transfer between endpoints.
 
@@ -27,9 +27,10 @@ The MessageQueue offers the following methods for message handling:
 The message queues are fully duplex and support sending and receiving of messages concurrently between tasks.
 
 ### Message Transmission and Thread Safety
-Message transmission via send ensures that the entire message is delivered as a whole. The integrity and order of the messages are preserved, with the send method blocking until all bytes are successfully transmitted.
+Message transmission via send ensures that the entire message is delivered as a whole. The integrity and order of the messages are preserved, with the send method blocking until all bytes are successfully transmitted. In the beginning we also send the length of our message in order to know it when we receive a message.
 
 For receiving, the receive method blocks until a message is available, ensuring that no partial data is retrieved. This blocking mechanism helps prevent active polling and guarantees efficient use of resources.
+First, we receive the length of the message, and then we read for that length in order to ensure that we have read all the message that was sent. 
 
 Thread safety is ensured as long as only one thread reads and another writes to the same MessageQueue. Concurrent reads or writes by multiple threads require additional synchronization mechanisms outside the provided queue structure.
 
