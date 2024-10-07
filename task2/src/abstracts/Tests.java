@@ -18,6 +18,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import except.DisconnectedException;
 import impl.BrokerManager;
 import impl.ConcreteBroker;
 import task1.Broker;
@@ -34,11 +35,16 @@ public class Tests {
         new Task(queueBroker, () -> {
             while (true) {
                 MessageQueue messageQueue = queueBroker.accept(1234);
-                byte[] buffer = new byte[255];
 
                 while (!messageQueue.closed()) {
-                    byte[] receivedBytes = messageQueue.receive();
-                    messageQueue.send(receivedBytes, 0, receivedBytes.length);
+                    byte[] receivedBytes;
+					try {
+						receivedBytes = messageQueue.receive();
+						messageQueue.send(receivedBytes, 0, receivedBytes.length);
+					} catch (DisconnectedException e) {
+						e.printStackTrace();
+					}
+                    
                 }
             }
         }) {
