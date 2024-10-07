@@ -2,20 +2,35 @@ package abstracts;
 
 import task1.Broker;
 
-public abstract class Task extends Thread {
+public class Task extends Thread {
 	Broker broker;
 	QueueBroker queueBroker;
 	
-	Task(Broker b, Runnable r){
+	public Task(Broker b, Runnable r){
 		super(r);
 		this.broker = b;
 	}
-	Task(QueueBroker b, Runnable r){
+	public Task(QueueBroker b, Runnable r){
 		super(r);
 		this.queueBroker = b;
 	}
 	
-	abstract Broker getBroker();
-	abstract QueueBroker getQueueBroker();
-	//static Task getTask(); TODO
+	static Broker getBroker() throws Exception {
+		Thread currentThread = Thread.currentThread();
+		if(currentThread instanceof Task) {
+			return ((Task)currentThread).broker;
+		}
+		else {
+			throw new Exception("Thread is not a Task");
+		}
+	}
+	static QueueBroker getQueueBroker() throws Exception {
+		Thread currentThread = Thread.currentThread();
+		if(currentThread instanceof Task) {
+			return ((Task)currentThread).queueBroker;
+		}
+		else {
+			throw new Exception("Thread is not a Task");
+		}
+	}
 }

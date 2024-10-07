@@ -17,32 +17,36 @@ public class ConcreteChannel extends Channel {
 	@Override
 	public int read(byte[] bytes, int offset, int length) throws DisconnectedException {
 		synchronized(bufferIn) {
-			if (disconnected()) {
-				throw new DisconnectedException();
-			}
-
-			while(bufferIn.empty()) {
+			try {
 				if (disconnected()) {
 					throw new DisconnectedException();
 				}
-				try {
-					bufferIn.wait();
-				} catch (InterruptedException e) {
-					disconnect();
-					throw new DisconnectedException();
+
+				while(bufferIn.empty()) {
+					if (disconnected()) {
+						throw new DisconnectedException();
+					}
+					try {
+						bufferIn.wait();
+					} catch (InterruptedException e) {
+						disconnect();
+						throw new DisconnectedException();
+					}
 				}
-			}
-			int totalBytesRead = 0;
-			while (totalBytesRead < length) {
-				try {
-					bytes[offset + totalBytesRead] = bufferIn.pull();
-					totalBytesRead++;
-				} catch (IllegalStateException e) {
-					return totalBytesRead;
+				int totalBytesRead = 0;
+				while (totalBytesRead < length) {
+					try {
+						bytes[offset + totalBytesRead] = bufferIn.pull();
+						totalBytesRead++;
+					} catch (IllegalStateException e) {
+						return totalBytesRead;
+					}
 				}
+				return totalBytesRead;
+
+			}finally {
+				bufferIn.notify();
 			}
-			bufferIn.notifyAll();
-			return totalBytesRead;
 		}
 	}
 
@@ -80,7 +84,7 @@ public class ConcreteChannel extends Channel {
 				}
 				return totalBytesWritten;
 			} finally {
-				oppositeChannel.bufferIn.notifyAll();
+				oppositeChannel.bufferIn.notify();
 			}
 		} 
 	}
@@ -89,15 +93,15 @@ public class ConcreteChannel extends Channel {
 	@Override
 	public void disconnect() {
 		synchronized (bufferIn) {
-            if (isDisconnected) {
-                return;
-            }
-            isDisconnected = true;
-            bufferIn.notifyAll();
-        }
-        synchronized (oppositeChannel.bufferIn) {
-        	oppositeChannel.bufferIn.notifyAll();
-        }
+			if (isDisconnected) {
+				return;
+			}
+			isDisconnected = true;
+			bufferIn.notifyAll();
+		}
+		synchronized (oppositeChannel.bufferIn) {
+			oppositeChannel.bufferIn.notifyAll();
+		}
 	}
 
 	@Override
