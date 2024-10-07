@@ -8,12 +8,13 @@ public class Task extends Thread{
 		this.broker = b;
 	}
 	
-	static Broker getBroker() {
+	static Broker getBroker() throws Exception {
 		Thread currentThread = Thread.currentThread();
-		Broker b = null;
 		if(currentThread instanceof Task) {
-			b = ((Task)currentThread).broker;
+			return ((Task)currentThread).broker;
 		}
-		return b;
+		else {
+			throw new Exception("Thread is not a Task");
+		}
 	}
 }

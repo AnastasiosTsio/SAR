@@ -1,11 +1,7 @@
 package impl;
-import task1.Broker;
 import utils.CircularBuffer;
 
 public class RDV {
-    private Broker localBroker;
-    private Broker remoteBroker;
-    private int port;
     private ConcreteChannel channelForServer;
     private ConcreteChannel channelForClient;
     private boolean isServerReady = false;
@@ -16,32 +12,22 @@ public class RDV {
     private CircularBuffer buffera = new CircularBuffer(1024);
     private CircularBuffer bufferb = new CircularBuffer(1024);
 
-    public RDV(Broker localBroker, int port) {
-        this.localBroker = localBroker;
-        this.port = port;
-        this.channelForServer = new ConcreteChannel(buffera, bufferb);
-    }
-
-    public RDV(Broker localBroker, Broker remoteBroker, int port) {
-        this.localBroker = localBroker;
-        this.remoteBroker = remoteBroker;
-        this.port = port;
-        this.channelForClient = new ConcreteChannel(bufferb, buffera);
+    public RDV() {
     }
 
     public ConcreteChannel getChannelForServer() {
         synchronized (lock) {
             isServerReady = true;
             
-            if (!isClientReady) {
+            while (!isClientReady) {
                 try {
-                    lock.wait();
+                    lock.wait(); 
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
             }
             
-            lock.notifyAll();
+            createChannels();
             return channelForServer;
         }
     }
@@ -49,18 +35,32 @@ public class RDV {
     public ConcreteChannel getChannelForClient() {
         synchronized (lock) {
             isClientReady = true;
-            
-            if (!isServerReady) {
+
+            while (!isServerReady) {
                 try {
                     lock.wait();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
             }
-            
-            lock.notifyAll();
+            createChannels();
             return channelForClient;
         }
+    }
+    
+    private void createChannels() {
+        if (channelForServer == null && channelForClient == null) {
+            channelForServer = new ConcreteChannel(buffera, bufferb);
+            channelForClient = new ConcreteChannel(bufferb, buffera);
+
+            channelForServer.setOppositeChannel(channelForClient);
+            channelForClient.setOppositeChannel(channelForServer);
+        }
+        lock.notifyAll();
+    }
+    
+    public boolean isReady() {
+        return isServerReady && isClientReady;
     }
 
 }

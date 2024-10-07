@@ -5,62 +5,111 @@ import task1.Channel;
 import utils.CircularBuffer;
 
 public class ConcreteChannel extends Channel {
-    private CircularBuffer bufferIn, bufferOut;
-    private boolean isDisconnected = false;
+	private CircularBuffer bufferIn, bufferOut;
+	private boolean isDisconnected = false;
+	private ConcreteChannel oppositeChannel;
 
-    public ConcreteChannel(CircularBuffer bufferIn, CircularBuffer bufferOut) {
-        this.bufferIn = bufferIn;
-        this.bufferOut = bufferOut;
-    }
+	public ConcreteChannel(CircularBuffer bufferIn, CircularBuffer bufferOut) {
+		this.bufferIn = bufferIn;
+		this.bufferOut = bufferOut;
+	}
 
-    @Override
-    public synchronized int read(byte[] bytes, int offset, int length) throws DisconnectedException {
-        if (disconnected()) {
-            throw new DisconnectedException();
-        }
-        
-        int bytesRead = 0;
-        try {
-            for (int i = 0; i < length; i++) {
-                bytes[offset + i] = bufferIn.pull();
-                bytesRead++;
-            }
-        } catch (IllegalStateException e) {
-            if (disconnected()) {
-                throw new DisconnectedException();
-            }
-        }
-        return bytesRead;
-    }
+	@Override
+	public int read(byte[] bytes, int offset, int length) throws DisconnectedException {
+		synchronized(bufferIn) {
+			try {
+				if (disconnected()) {
+					throw new DisconnectedException();
+				}
 
-    @Override
-    public synchronized int write(byte[] bytes, int offset, int length) throws DisconnectedException {
-        if (disconnected()) {
-            throw new DisconnectedException();
-        }
-        
-        int bytesWritten = 0;
-        try {
-            for (int i = 0; i < length; i++) {
-                bufferOut.push(bytes[offset + i]);
-                bytesWritten++;
-            }
-        } catch (IllegalStateException e) {
-            if (disconnected()) {
-                throw new DisconnectedException();
-            }
-        }
-        return bytesWritten;
-    }
+				while(bufferIn.empty()) {
+					if (disconnected()) {
+						throw new DisconnectedException();
+					}
+					try {
+						bufferIn.wait();
+					} catch (InterruptedException e) {
+						disconnect();
+						throw new DisconnectedException();
+					}
+				}
+				int totalBytesRead = 0;
+				while (totalBytesRead < length) {
+					try {
+						bytes[offset + totalBytesRead] = bufferIn.pull();
+						totalBytesRead++;
+					} catch (IllegalStateException e) {
+						return totalBytesRead;
+					}
+				}
+				return totalBytesRead;
+
+			}finally {
+				bufferIn.notify();
+			}
+		}
+	}
 
 
-    @Override
-    public void disconnect() {
-        isDisconnected = true;
-    }
+	@Override
+	public  int write(byte[] bytes, int offset, int length) throws DisconnectedException {
+		synchronized(oppositeChannel.bufferIn) {
+			try {
+				if (disconnected()) {
+					throw new DisconnectedException();
+				}
 
-    @Override
-    public boolean disconnected() {
-        return isDisconnected;
-    }
+				while(bufferOut.full()) {
+					if (disconnected()) {
+						throw new DisconnectedException();
+					}
+					try {
+						oppositeChannel.bufferIn.wait();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+
+				int totalBytesWritten = 0;
+				while (totalBytesWritten < length) {
+					if (disconnected()) {
+						throw new DisconnectedException();
+					}
+					try {
+						bufferOut.push(bytes[offset + totalBytesWritten]);
+						totalBytesWritten++;
+					} catch (IllegalStateException e) {
+						return totalBytesWritten;
+					}
+				}
+				return totalBytesWritten;
+			} finally {
+				oppositeChannel.bufferIn.notify();
+			}
+		} 
+	}
+
+
+	@Override
+	public void disconnect() {
+		synchronized (bufferIn) {
+			if (isDisconnected) {
+				return;
+			}
+			isDisconnected = true;
+			bufferIn.notifyAll();
+		}
+		synchronized (oppositeChannel.bufferIn) {
+			oppositeChannel.bufferIn.notifyAll();
+		}
+	}
+
+	@Override
+	public boolean disconnected() {
+		return isDisconnected || oppositeChannel.isDisconnected;
+	}
+
+	public void setOppositeChannel(ConcreteChannel opposite) {
+		this.oppositeChannel = opposite;
+	}
 }
