@@ -21,13 +21,13 @@ import utils.Message;
 
 class Tests {
 
-    private static QueueBroker echoQueueBroker;
-    private static QueueBroker bigQueueBroker;
+    private static EventQueueBroker echoQueueBroker;
+    private static EventQueueBroker bigQueueBroker;
     private static ByteArrayOutputStream bufferBig = new ByteArrayOutputStream();
     
     @BeforeAll
     static void setUpServer() {
-        echoQueueBroker = new QueueBroker("localhost") {
+        echoQueueBroker = new EventQueueBroker("localhost") {
             @Override
             public boolean bind(int port, AcceptListener listener) {
                 return true;
@@ -44,7 +44,7 @@ class Tests {
             }
         };
         echoQueueBroker.bind(1234, (queue) -> {
-            queue.setListener(new MessageQueue.Listener() {
+            queue.setListener(new EventMessageQueue.Listener() {
                 @Override
                 public void received(byte[] msg) {
                     queue.send(new Message(msg, 0, msg.length));
@@ -62,7 +62,7 @@ class Tests {
 
         
         
-        bigQueueBroker = new QueueBroker("bigBroker") {
+        bigQueueBroker = new EventQueueBroker("bigBroker") {
             @Override
             public boolean bind(int port, AcceptListener listener) {
                 return true;
@@ -79,7 +79,7 @@ class Tests {
             }
         };
         bigQueueBroker.bind(4567, (queue) -> {
-            queue.setListener(new MessageQueue.Listener() {
+            queue.setListener(new EventMessageQueue.Listener() {
                 @Override
                 public void received(byte[] msg) {
                     try {
@@ -102,7 +102,7 @@ class Tests {
 
     @ParameterizedTest
     @MethodSource("createQueueBroker")
-    void testEchoQueueServer(QueueBroker queueBroker) throws InterruptedException {
+    void testEchoQueueServer(EventQueueBroker queueBroker) throws InterruptedException {
         System.out.println("--------------------testEchoQueueServer--------------------");
         int clientCount = 5;
         int port = 1234;
@@ -111,14 +111,14 @@ class Tests {
         for (int i = 0; i < clientCount; i++) {
             final int clientId = i;
             executor.submit(() -> {
-                queueBroker.connect("localhost", port, new QueueBroker.ConnectListener() {
+                queueBroker.connect("localhost", port, new EventQueueBroker.ConnectListener() {
                     @Override
-                    public void connected(MessageQueue queue) {
+                    public void connected(EventMessageQueue queue) {
                         byte[] sendBytes = new byte[255];
                         for (int j = 0; j < 255; j++) {
                             sendBytes[j] = (byte) (j + 1);
                         }
-                        queue.setListener(new MessageQueue.Listener() {
+                        queue.setListener(new EventMessageQueue.Listener() {
                             @Override
                             public void received(byte[] msg) {
                             }
@@ -152,18 +152,18 @@ class Tests {
 
     @ParameterizedTest
     @MethodSource("createQueueBroker")
-    void testLargeDataTransfer(QueueBroker queueBroker) throws InterruptedException {
+    void testLargeDataTransfer(EventQueueBroker queueBroker) throws InterruptedException {
         System.out.println("--------------------testLargeDataTransfer--------------------");
         int port = 4567;
 
-        queueBroker.connect("bigBroker", port, new QueueBroker.ConnectListener() {
+        queueBroker.connect("bigBroker", port, new EventQueueBroker.ConnectListener() {
             @Override
-            public void connected(MessageQueue queue) {
+            public void connected(EventMessageQueue queue) {
                 byte[] sendBytes = new byte[1024 * 5];
                 for (int i = 0; i < sendBytes.length; i++) {
                     sendBytes[i] = (byte) (i % 255);
                 }
-                queue.setListener(new MessageQueue.Listener() {
+                queue.setListener(new EventMessageQueue.Listener() {
                     @Override
                     public void received(byte[] msg) {
                         assertArrayEquals(sendBytes, msg, "The large data transfer does not match the sent data");
@@ -190,8 +190,8 @@ class Tests {
         System.out.println("testLargeDataTransfer finished successfully");
     }
 
-    private static Stream<QueueBroker> createQueueBroker() {
-    	var broker = new QueueBroker("EchoBroker") {
+    private static Stream<EventQueueBroker> createQueueBroker() {
+    	var broker = new EventQueueBroker("EchoBroker") {
             @Override
             public boolean bind(int port, AcceptListener listener) {
                 return true;

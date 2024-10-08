@@ -7,7 +7,7 @@ public class Message {
 		this.offset = i;
 		this.length = length;
 	}
-	byte[] bytes;
-	int offset;
-	int length;
+	public byte[] bytes;
+	public int offset;
+	public int length;
 }

@@ -2,11 +2,11 @@ package abstracts;
 
 import utils.Message;
 
-public abstract class MessageQueue {
-	interface Listener {
-        void received(byte[] msg);
-        void sent(Message msg);
-        void closed();
+public abstract class EventMessageQueue {
+	public interface Listener {
+        public void received(byte[] msg);
+        public void sent(Message msg);
+        public void closed();
     }
 
     public abstract void setListener(Listener l);
