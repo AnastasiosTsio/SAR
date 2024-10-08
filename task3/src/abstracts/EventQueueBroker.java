@@ -1,21 +1,21 @@
 package abstracts;
 
-public abstract class QueueBroker {
+public abstract class EventQueueBroker {
 	public final String name;
 
-    QueueBroker (String name) {
+    public EventQueueBroker (String name) {
         this.name = name;
     }
 
     public interface AcceptListener {
-        void accepted(MessageQueue queue);
+        void accepted(EventMessageQueue queue);
     }
 
     public abstract boolean bind(int port, AcceptListener listener);
     public abstract boolean unbind(int port);
 
     public interface ConnectListener {
-        void connected(MessageQueue queue);
+        void connected(EventMessageQueue queue);
         void refused();
     }
 

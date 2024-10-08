@@ -5,11 +5,20 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class EventPump {
+	private static EventPump instance;
 	List<Runnable> queue;
 	
 	public EventPump() {
 		queue = new LinkedList<Runnable>();
 	}
+	
+	public static synchronized EventPump getInstance() {
+        if (instance == null) {
+            instance = new EventPump();
+        }
+        return instance;
+    }
+	
 	public synchronized void run() {
 		Runnable r;
 		while(true) {
